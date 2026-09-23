@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Market Pulse | Yahoo Finance (local)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root {
+    --navy:#141B2E; --bg:#F1F3F8; --card:#FFFFFF; --border:#E7E9F1;
+    --text:#16192B; --text-muted:#6B7185; --text-faint:#9CA1B5;
+    --blue:#2E86F0; --blue-dark:#16305C;
+    --up-bg:#E3F8EC; --up-text:#1E9C5D; --down-bg:#FDE9E9; --down-text:#D8383F;
+    --warn-bg:#FFF6E0; --warn-text:#9C7500;
+    --font:'Inter',-apple-system,sans-serif; --mono:'IBM Plex Mono',monospace;
+    --radius:12px; --shadow:0 1px 2px rgba(20,27,46,.04),0 2px 8px rgba(20,27,46,.05);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font);-webkit-font-smoothing:antialiased;}
+  .shell{display:flex;min-height:100vh;}
+  .sidebar{width:216px;flex:0 0 auto;background:var(--navy);color:#C9CEE0;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;}
+  .sidebar .brand{display:flex;align-items:center;gap:9px;padding:20px 18px;font-weight:700;font-size:15px;color:#fff;border-bottom:1px solid rgba(255,255,255,.08);}
+  .sidebar .brand .mark{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,var(--blue),#7C4DFF);display:flex;align-items:center;justify-content:center;font-size:14px;}
+  .nav{padding:14px 10px;flex:1 1 auto;}
+  .nav a{display:flex;align-items:center;gap:10px;padding:9px 12px;margin-bottom:2px;border-radius:8px;text-decoration:none;color:#AEB4CC;font-size:13.5px;font-weight:500;}
+  .nav a.active{background:var(--blue);color:#fff;}
+  .sidebar .foot{padding:16px 18px;border-top:1px solid rgba(255,255,255,.08);font-size:11.5px;color:#7A8099;}
+  .live{display:flex;align-items:center;gap:6px;font-weight:600;margin-bottom:4px;}
+  .live.on{color:#7FE0A8;} .live.off{color:#E0A87F;}
+  .dot{width:6px;height:6px;border-radius:50%;background:#33C97A;animation:pulse 2s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+  .main{flex:1 1 auto;min-width:0;}
+  .topbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;background:var(--navy);color:#fff;padding:14px 24px;}
+  .topbar h1{font-size:17px;font-weight:700;margin:0;}
+  .topbar-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  select.tb{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);color:#fff;font-family:var(--font);font-size:12.5px;padding:7px 12px;border-radius:8px;}
+  .pill-btn{background:var(--blue);border:1px solid var(--blue);color:#fff;font-family:var(--font);font-size:12.5px;font-weight:500;padding:7px 14px;border-radius:999px;cursor:pointer;}
+  .pill-btn:disabled{opacity:.5;}
+  .date-box{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:6px 12px;font-family:var(--mono);font-size:12px;display:flex;align-items:center;gap:6px;}
+  .content{padding:22px 24px 40px;}
+  .banner{display:none;align-items:center;gap:10px;background:var(--warn-bg);color:var(--warn-text);border:1px solid #F0DFA0;border-radius:10px;padding:10px 16px;font-size:13px;margin-bottom:16px;}
+  .banner.show{display:flex;}
+  .kpi-row{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin-bottom:18px;}
+  .kpi-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px 16px 14px;text-align:center;}
+  .kpi-card .lbl{font-size:12px;color:var(--text-muted);font-weight:500;margin-bottom:8px;}
+  .kpi-card .val{font-size:22px;font-weight:700;font-family:var(--mono);letter-spacing:-0.02em;}
+  .kpi-card .pill{display:inline-flex;align-items:center;gap:3px;margin-top:9px;padding:3px 9px;border-radius:999px;font-size:11.5px;font-weight:600;font-family:var(--mono);}
+  .pill.up{background:var(--up-bg);color:var(--up-text);} .pill.down{background:var(--down-bg);color:var(--down-text);} .pill.neutral{background:#EEF0F6;color:var(--text-muted);}
+  .row-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
+  .row-3{display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:14px;}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;display:flex;flex-direction:column;}
+  .card h3{margin:0 0 2px;font-size:14px;font-weight:700;}
+  .card .updated{font-size:10.5px;color:var(--text-faint);font-family:var(--mono);margin-top:2px;}
+  .chart-h-320{height:300px;position:relative;} .chart-h-260{height:240px;position:relative;}
+  table.rep{width:100%;border-collapse:collapse;font-size:12.5px;}
+  table.rep thead th{background:var(--blue-dark);color:#fff;text-align:left;padding:8px 10px;font-weight:600;font-size:11.5px;}
+  table.rep tbody td{padding:7px 10px;border-bottom:1px solid var(--border);font-family:var(--mono);}
+  table.rep tbody td:first-child{font-family:var(--font);font-weight:600;}
+  table.rep tfoot td{padding:9px 10px;font-weight:700;color:var(--blue-dark);border-top:2px solid var(--blue-dark);font-family:var(--mono);}
+  .table-wrap{max-height:300px;overflow-y:auto;}
+  .page{display:none;} .page.active{display:block;}
+  .page-head{margin-bottom:16px;} .page-head h2{margin:0 0 4px;font-size:18px;} .page-head p{margin:0;color:var(--text-muted);font-size:12.5px;}
+  .toolbar-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+  select.local,input.local{background:var(--card);border:1px solid var(--border);color:var(--text);font-family:var(--font);font-size:12.5px;padding:7px 10px;border-radius:8px;}
+  .range-row{display:grid;grid-template-columns:70px 1fr 90px;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:12.5px;}
+  .range-row:last-child{border-bottom:none;}
+  .range-track{position:relative;height:6px;background:#EEF0F6;border-radius:4px;}
+  .range-fill{position:absolute;top:0;height:6px;border-radius:4px;background:linear-gradient(90deg,var(--down-text),var(--up-text));width:100%;}
+  .range-marker{position:absolute;top:-3px;width:2px;height:12px;background:var(--blue-dark);}
+  .alert-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px;}
+  .alert-row:last-child{border-bottom:none;}
+  .settings-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);}
+  .settings-row:last-child{border-bottom:none;}
+  .settings-row .lbl{font-size:13px;font-weight:600;} .settings-row .sub{font-size:11.5px;color:var(--text-muted);margin-top:2px;}
+  pre.report{font-family:var(--mono);font-size:12.5px;white-space:pre-wrap;line-height:1.6;background:var(--card);}
+  .loading-msg{font-size:12.5px;color:var(--text-faint);padding:8px 0;}
+  footer.note{padding:6px 24px 26px;color:var(--text-faint);font-size:11px;line-height:1.6;}
+  @media (max-width:1200px){.kpi-row{grid-template-columns:repeat(3,1fr);}.row-3{grid-template-columns:1fr 1fr;}}
+  @media (max-width:860px){.shell{flex-direction:column;}.sidebar{width:100%;height:auto;position:relative;}.kpi-row{grid-template-columns:repeat(2,1fr);}.row-2,.row-3{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand"><span class="mark">📈</span>Market Pulse</div>
+    <nav class="nav" id="navList">
+      <a href="#" data-page="overview">▦&nbsp;&nbsp;Overview</a>
+      <a href="#" data-page="watchlist">☰&nbsp;&nbsp;Watchlist</a>
+      <a href="#" data-page="markets">🌐&nbsp;&nbsp;Markets</a>
+      <a href="#" data-page="screener">🔎&nbsp;&nbsp;Screener</a>
+      <a href="#" data-page="analytics">📊&nbsp;&nbsp;Analytics</a>
+      <a href="#" data-page="alerts">🔔&nbsp;&nbsp;Alerts</a>
+      <a href="#" data-page="reports">📁&nbsp;&nbsp;Reports</a>
+      <a href="#" data-page="settings">⚙&nbsp;&nbsp;Settings</a>
+    </nav>
+    <div class="foot">
+      <div class="live off" id="liveIndicator"><span class="dot"></span>Connecting…</div>
+      <span id="sideClock">--:--:--</span>
+    </div>
+  </aside>
+  <div class="main">
+    <header class="topbar">
+      <h1 id="pageTitle">Market Pulse | Overview</h1>
+      <div class="topbar-controls">
+        <select class="tb" id="marketFilter">
+          <option value="all">All markets</option>
+          <option value="US">US — NASDAQ/NYSE</option>
+          <option value="NSE">India — NSE</option>
+        </select>
+        <select class="tb" id="autoRefresh">
+          <option value="0">Auto-refresh: Off</option>
+          <option value="30000" selected>Every 30s</option>
+          <option value="60000">Every 1 min</option>
+          <option value="300000">Every 5 min</option>
+        </select>
+        <button class="pill-btn" id="refreshBtn" type="button">↻ Refresh Now</button>
+        <div class="date-box">🕒 <span id="sessionClock">--:--:--</span></div>
+      </div>
+    </header>
+    <div class="content">
+      <div class="banner" id="banner"></div>
+
+      <section class="page active" id="page-overview">
+        <div class="kpi-row" id="kpiRow"></div>
+        <div class="row-2">
+          <div class="card">
+            <h3>Price &amp; Volume — <select id="symSelect" style="border:none;background:none;font-weight:700;font-family:var(--mono);font-size:14px;"></select></h3>
+            <div class="updated" id="chartUpdated">—</div>
+            <div class="chart-h-320"><canvas id="comboChart1"></canvas></div>
+          </div>
+          <div class="card">
+            <h3>Today's % Change by Symbol</h3>
+            <div class="updated" id="chart2Updated">—</div>
+            <div class="chart-h-320"><canvas id="comboChart2"></canvas></div>
+          </div>
+        </div>
+        <div class="row-3">
+          <div class="card">
+            <h3>Watchlist</h3>
+            <div class="updated" id="tableUpdated">—</div>
+            <div class="table-wrap">
+              <table class="rep">
+                <thead><tr><th>Symbol</th><th>Company</th><th>Price</th><th>Chg %</th></tr></thead>
+                <tbody id="tableBody"></tbody>
+                <tfoot><tr><td>Total</td><td>Avg Change</td><td></td><td id="tableTotal">—</td></tr></tfoot>
+              </table>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Sector Allocation</h3>
+            <div class="updated">Static classification, not a live figure</div>
+            <div class="chart-h-260"><canvas id="pieChart"></canvas></div>
+          </div>
+          <div class="card">
+            <h3>Volume by Symbol</h3>
+            <div class="updated" id="barUpdated">—</div>
+            <div class="chart-h-260"><canvas id="barChart"></canvas></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="page-watchlist">
+        <div class="page-head"><h2>Watchlist</h2><p>Full quote detail for every tracked symbol.</p></div>
+        <div class="card">
+          <div class="updated" id="wlUpdated">—</div>
+          <div class="table-wrap" style="max-height:520px;">
+            <table class="rep">
+              <thead><tr><th>Symbol</th><th>Company</th><th>Price</th><th>Open</th><th>High</th><th>Low</th><th>Volume</th><th>Chg %</th></tr></thead>
+              <tbody id="wlBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="page-markets">
+        <div class="page-head"><h2>Markets</h2><p>Watchlist symbols grouped by exchange.</p></div>
+        <div class="row-2" id="marketsGrid"></div>
+      </section>
+
+      <section class="page" id="page-screener">
+        <div class="page-head"><h2>Screener</h2><p>Filter and sort the watchlist by today's move.</p></div>
+        <div class="toolbar-row">
+          <select class="local" id="scrFilter">
+            <option value="all">All symbols</option>
+            <option value="gainers">Gainers only</option>
+            <option value="losers">Losers only</option>
+          </select>
+          <select class="local" id="scrSort">
+            <option value="chg">Sort by Chg %</option>
+            <option value="vol">Sort by Volume</option>
+            <option value="price">Sort by Price</option>
+          </select>
+        </div>
+        <div class="card">
+          <div class="table-wrap" style="max-height:480px;">
+            <table class="rep">
+              <thead><tr><th>Symbol</th><th>Company</th><th>Price</th><th>Volume</th><th>Chg %</th></tr></thead>
+              <tbody id="scrBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="page-analytics">
+        <div class="page-head"><h2>Analytics</h2><p>Today's trading range (low–high) per symbol, with the current price marked.</p></div>
+        <div class="card">
+          <div class="updated" id="anUpdated">—</div>
+          <div id="anRanges"></div>
+        </div>
+      </section>
+
+      <section class="page" id="page-alerts">
+        <div class="page-head"><h2>Alerts</h2><p>Set a move threshold and see which symbols are past it right now. Not saved anywhere — resets on reload.</p></div>
+        <div class="toolbar-row">
+          <label style="font-size:12.5px;color:var(--text-muted);">Notify me when a symbol moves at least</label>
+          <input class="local" id="alertThresh" type="number" min="0" step="0.1" value="1.5" style="width:70px;">
+          <span style="font-size:12.5px;color:var(--text-muted);">%</span>
+        </div>
+        <div class="card"><div id="alertList"></div></div>
+      </section>
+
+      <section class="page" id="page-reports">
+        <div class="page-head"><h2>Reports</h2><p>A plain-text summary of the current watchlist snapshot.</p></div>
+        <div class="toolbar-row">
+          <button class="pill-btn" id="exportCsvBtn" type="button">⬇ Export CSV</button>
+          <span id="exportNote" style="font-size:12px;color:var(--text-muted);"></span>
+        </div>
+        <div class="card"><pre class="report" id="reportText">Loading…</pre></div>
+      </section>
+
+      <section class="page" id="page-settings">
+        <div class="page-head"><h2>Settings</h2><p>Data source and preferences for this session.</p></div>
+        <div class="card">
+          <div class="settings-row">
+            <div><div class="lbl">Data source</div><div class="sub">Yahoo Finance, via the local yfinance backend · unofficial, can throttle without notice</div></div>
+            <span style="font-family:var(--mono);font-size:12px;color:var(--text-muted);" id="settingsConn">connecting…</span>
+          </div>
+          <div class="settings-row">
+            <div><div class="lbl">Auto-refresh</div><div class="sub">Controlled from the top bar on every page</div></div>
+            <span style="font-family:var(--mono);font-size:12px;color:var(--text-muted);" id="settingsAutoRefresh">—</span>
+          </div>
+          <div class="settings-row">
+            <div><div class="lbl">Default market filter</div><div class="sub">Applies immediately, same control as the top bar</div></div>
+            <select class="local" id="defaultMarketSelect">
+              <option value="all">All markets</option>
+              <option value="US">US only</option>
+              <option value="NSE">NSE only</option>
+            </select>
+          </div>
+          <div class="settings-row">
+            <div><div class="lbl">Backend</div><div class="sub">FastAPI + yfinance, running at this page's own origin</div></div>
+            <span style="font-family:var(--mono);font-size:12px;color:var(--text-muted);">/api/quotes · /api/history</span>
+          </div>
+        </div>
+      </section>
+
+    </div>
+    <footer class="note">Quotes and daily history are fetched live from Yahoo Finance via the unofficial <code>yfinance</code> library, through your local backend. Yahoo can throttle or change these endpoints without notice — that's the tradeoff for a free, keyless data source.</footer>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  function tick(){ const t=new Date().toLocaleTimeString('en-US',{hour12:false}); document.getElementById('sideClock').textContent=t; document.getElementById('sessionClock').textContent=t; }
+  tick(); setInterval(tick,1000);
+
+  let quotes = [];
+  let marketFilter = 'all';
+  let activeSym = 'NVDA';
+  const fmt = (n,d) => (n==null?'—':n.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d}));
+  const timeStr = iso => iso ? new Date(iso).toLocaleTimeString('en-US',{hour12:false}) : '—';
+  const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const visQuotes = () => quotes.filter(q => marketFilter==='all' || q.market===marketFilter);
+
+  function setBanner(msg, show){ const b=document.getElementById('banner'); b.textContent=msg||''; b.className='banner'+(show?' show':''); }
+
+  async function fetchQuotes(){
+    try {
+      const res = await fetch('/api/quotes');
+      const data = await res.json();
+      quotes = data.quotes;
+      const anyOk = quotes.some(q => q.price != null);
+      const el = document.getElementById('liveIndicator');
+      el.className = 'live ' + (anyOk ? 'on' : 'off');
+      el.innerHTML = '<span class="dot"></span>' + (anyOk ? 'Live · Yahoo Finance' : 'No data yet');
+      const anyErr = quotes.find(q => q.error);
+      setBanner(anyErr ? ('Some symbols failed: ' + anyErr.error) : '', !!anyErr && !anyOk);
+      window.__lastAsOf = data.asOf;
+    } catch (e) {
+      document.getElementById('liveIndicator').className = 'live off';
+      document.getElementById('liveIndicator').innerHTML = '<span class="dot"></span>Backend unreachable';
+      setBanner('Could not reach the local backend at /api/quotes — make sure `uvicorn server:app` is running.', true);
+    }
+  }
+
+  async function fetchHistory(sym){
+    try {
+      const res = await fetch('/api/history/' + sym + '?days=20');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return await res.json();
+    } catch (e) { return { series: [], error: String(e) }; }
+  }
+
+  function renderKPIs(){
+    const vis = visQuotes().filter(q => q.price != null);
+    if (!vis.length) { document.getElementById('kpiRow').innerHTML = Array(6).fill('<div class="kpi-card"><div class="lbl">—</div><div class="val" style="color:var(--text-faint);">Loading…</div></div>').join(''); return; }
+    const adv = vis.filter(q=>q.changePercent>=0).length, dec = vis.length-adv;
+    const avg = vis.reduce((a,q)=>a+q.changePercent,0)/vis.length;
+    const vol = vis.reduce((a,q)=>a+(q.volume||0),0);
+    let best=vis[0], worst=vis[0];
+    vis.forEach(q=>{ if(q.changePercent>best.changePercent) best=q; if(q.changePercent<worst.changePercent) worst=q; });
+    const card=(l,v,d,c)=>'<div class="kpi-card"><div class="lbl">'+l+'</div><div class="val">'+v+'</div>'+(d?'<div class="pill '+c+'">'+d+'</div>':'')+'</div>';
+    document.getElementById('kpiRow').innerHTML =
+      card('Advancers',adv,adv+' of '+vis.length,'up') + card('Decliners',dec,dec+' of '+vis.length,'down') +
+      card('Avg Change',(avg>=0?'+':'')+avg.toFixed(2)+'%',null,'') +
+      card('Total Volume',(vol/1e6).toFixed(2)+'M','shares','neutral') +
+      card('Best Performer',best.symbol,(best.changePercent>=0?'+':'')+best.changePercent.toFixed(2)+'%','up') +
+      card('Worst Performer',worst.symbol,worst.changePercent.toFixed(2)+'%','down');
+  }
+
+  function renderTable(){
+    const vis = visQuotes();
+    document.getElementById('tableBody').innerHTML = vis.map(q=>{
+      if (q.price==null) return '<tr><td>'+q.symbol+'</td><td>'+q.name+'</td><td colspan="2" style="color:var(--down-text);">'+(q.error||'Loading…')+'</td></tr>';
+      const up=q.changePercent>=0;
+      return '<tr><td>'+q.symbol+'</td><td style="font-family:var(--font);">'+q.name+'</td><td>'+q.ccy+fmt(q.price,2)+'</td><td style="color:'+(up?'var(--up-text)':'var(--down-text)')+'">'+(up?'+':'')+q.changePercent.toFixed(2)+'%</td></tr>';
+    }).join('');
+    const ok = vis.filter(q=>q.price!=null);
+    const avg = ok.length ? ok.reduce((a,q)=>a+q.changePercent,0)/ok.length : null;
+    document.getElementById('tableTotal').textContent = avg!=null ? (avg>=0?'+':'')+avg.toFixed(2)+'%' : '—';
+    document.getElementById('tableUpdated').textContent = window.__lastAsOf ? 'Updated '+timeStr(window.__lastAsOf) : '—';
+  }
+
+  const pieChart = new Chart(document.getElementById('pieChart'), { type:'pie', data:{labels:[],datasets:[{data:[],backgroundColor:['#16305C','#2E86F0','#7FB2F0','#C9D8F0','#9CA1B5'],borderWidth:0}]}, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{boxWidth:9,font:{size:11},color:'#6B7185'}}},animation:false} });
+  function renderPie(){ const vis=visQuotes(); const by={}; vis.forEach(q=>by[q.sector]=(by[q.sector]||0)+1); pieChart.data.labels=Object.keys(by); pieChart.data.datasets[0].data=Object.values(by); pieChart.update('none'); }
+
+  const barChart = new Chart(document.getElementById('barChart'), { type:'bar', data:{labels:[],datasets:[{data:[],backgroundColor:'#2E86F0',borderRadius:4,barPercentage:.55}]}, options:{responsive:true,maintainAspectRatio:false,animation:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{size:10}}},y:{grid:{color:'#EEF0F6'}}}} });
+  function renderBar(){ const vis=visQuotes().filter(q=>q.price!=null); barChart.data.labels=vis.map(q=>q.symbol); barChart.data.datasets[0].data=vis.map(q=>Math.round((q.volume||0)/1000)); barChart.update('none'); document.getElementById('barUpdated').textContent = window.__lastAsOf ? 'Updated '+timeStr(window.__lastAsOf)+' · thousands of shares' : '—'; }
+
+  const comboChart2 = new Chart(document.getElementById('comboChart2'), { type:'bar', data:{labels:[],datasets:[{data:[],backgroundColor:[],borderRadius:4,barPercentage:.55}]}, options:{responsive:true,maintainAspectRatio:false,animation:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{grid:{color:'#EEF0F6'},ticks:{callback:v=>v+'%'}}}} });
+  function renderChart2(){ const vis=visQuotes().filter(q=>q.price!=null); comboChart2.data.labels=vis.map(q=>q.symbol); comboChart2.data.datasets[0].data=vis.map(q=>+q.changePercent.toFixed(2)); comboChart2.data.datasets[0].backgroundColor=vis.map(q=>q.changePercent>=0?cssVar('--up-text'):cssVar('--down-text')); comboChart2.update('none'); document.getElementById('chart2Updated').textContent = window.__lastAsOf ? 'Updated '+timeStr(window.__lastAsOf) : '—'; }
+
+  const comboChart1 = new Chart(document.getElementById('comboChart1'), { data:{labels:[],datasets:[
+      {type:'bar',label:'Volume',data:[],backgroundColor:'#2E86F0',borderRadius:3,yAxisID:'y',order:2,barPercentage:.6},
+      {type:'line',label:'Close',data:[],borderColor:'#16305C',backgroundColor:'#16305C',borderWidth:2,tension:.3,pointRadius:2,yAxisID:'y1',order:1}
+    ]}, options:{responsive:true,maintainAspectRatio:false,animation:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{maxTicksLimit:8,font:{size:10}}},y:{position:'left',grid:{color:'#EEF0F6'},title:{display:true,text:'Volume',color:'#9CA1B5',font:{size:10}}},y1:{position:'right',grid:{display:false},title:{display:true,text:'Price',color:'#9CA1B5',font:{size:10}}}}} });
+  async function renderChart1(){
+    const h = await fetchHistory(activeSym);
+    if (!h.series || !h.series.length){ document.getElementById('chartUpdated').textContent = h.error ? 'History unavailable: '+h.error : '—'; return; }
+    comboChart1.data.labels = h.series.map(p=>p.date.slice(5));
+    comboChart1.data.datasets[0].data = h.series.map(p=>p.volume);
+    comboChart1.data.datasets[1].data = h.series.map(p=>p.close);
+    comboChart1.update('none');
+    document.getElementById('chartUpdated').textContent = 'Last trading day ' + h.series[h.series.length-1].date;
+  }
+
+  // ---------- Page switching ----------
+  const PAGE_TITLES = { overview:'Overview', watchlist:'Watchlist', markets:'Markets', screener:'Screener', analytics:'Analytics', alerts:'Alerts', reports:'Reports', settings:'Settings' };
+  let currentPage = 'overview';
+  function showPage(name){
+    currentPage = name;
+    document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id==='page-'+name));
+    document.querySelectorAll('#navList a').forEach(a => a.classList.toggle('active', a.dataset.page===name));
+    document.getElementById('pageTitle').textContent = 'Market Pulse | ' + PAGE_TITLES[name];
+    renderPage(name);
+  }
+  document.querySelectorAll('#navList a').forEach(a => a.addEventListener('click', e => { e.preventDefault(); showPage(a.dataset.page); }));
+
+  function renderPage(name){
+    if (name==='watchlist') renderWatchlistPage();
+    else if (name==='markets') renderMarketsPage();
+    else if (name==='screener') renderScreenerPage();
+    else if (name==='analytics') renderAnalyticsPage();
+    else if (name==='alerts') renderAlertsPage();
+    else if (name==='reports') renderReportsPage();
+    else if (name==='settings') renderSettingsPage();
+  }
+  function loadedQuotes(){ return visQuotes().filter(q => q.price != null); }
+
+  function renderWatchlistPage(){
+    const vis = visQuotes();
+    document.getElementById('wlBody').innerHTML = vis.map(q => {
+      if (q.price==null) return '<tr><td>'+q.symbol+'</td><td>'+q.name+'</td><td colspan="6" style="color:var(--text-faint);">'+(q.error||'Loading…')+'</td></tr>';
+      const up = q.changePercent>=0;
+      return '<tr><td>'+q.symbol+'</td><td style="font-family:var(--font);">'+q.name+'</td><td>'+q.ccy+fmt(q.price,2)+'</td><td>'+q.ccy+fmt(q.open,2)+'</td><td>'+q.ccy+fmt(q.high,2)+'</td><td>'+q.ccy+fmt(q.low,2)+'</td><td>'+(q.volume||0).toLocaleString('en-US')+'</td><td style="color:'+(up?'var(--up-text)':'var(--down-text)')+'">'+(up?'+':'')+q.changePercent.toFixed(2)+'%</td></tr>';
+    }).join('');
+    document.getElementById('wlUpdated').textContent = window.__lastAsOf ? 'Updated '+timeStr(window.__lastAsOf) : '—';
+  }
+
+  function renderMarketsPage(){
+    const groups = [['US','US — NASDAQ/NYSE'], ['NSE','India — NSE']];
+    document.getElementById('marketsGrid').innerHTML = groups.map(([code,label]) => {
+      const syms = quotes.filter(q => q.market===code && q.price!=null);
+      const avg = syms.length ? syms.reduce((a,q)=>a+q.changePercent,0)/syms.length : null;
+      const rows = syms.map(q => {
+        const up = q.changePercent>=0;
+        return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12.5px;"><span><b>'+q.symbol+'</b> · '+q.name+'</span><span style="font-family:var(--mono);color:'+(up?'var(--up-text)':'var(--down-text)')+'">'+(up?'+':'')+q.changePercent.toFixed(2)+'%</span></div>';
+      }).join('') || '<div class="loading-msg">Loading…</div>';
+      return '<div class="card"><h3>'+label+'</h3><div class="updated">'+(avg!=null?'Avg change '+(avg>=0?'+':'')+avg.toFixed(2)+'%':'—')+'</div><div style="margin-top:8px;">'+rows+'</div></div>';
+    }).join('');
+  }
+
+  function renderScreenerPage(){
+    let rows = loadedQuotes();
+    const filt = document.getElementById('scrFilter').value;
+    if (filt==='gainers') rows = rows.filter(q=>q.changePercent>=0);
+    if (filt==='losers') rows = rows.filter(q=>q.changePercent<0);
+    const sort = document.getElementById('scrSort').value;
+    if (sort==='chg') rows.sort((a,b)=>b.changePercent-a.changePercent);
+    if (sort==='vol') rows.sort((a,b)=>(b.volume||0)-(a.volume||0));
+    if (sort==='price') rows.sort((a,b)=>b.price-a.price);
+    document.getElementById('scrBody').innerHTML = rows.map(q => {
+      const up = q.changePercent>=0;
+      return '<tr><td>'+q.symbol+'</td><td style="font-family:var(--font);">'+q.name+'</td><td>'+q.ccy+fmt(q.price,2)+'</td><td>'+(q.volume||0).toLocaleString('en-US')+'</td><td style="color:'+(up?'var(--up-text)':'var(--down-text)')+'">'+(up?'+':'')+q.changePercent.toFixed(2)+'%</td></tr>';
+    }).join('') || '<tr><td colspan="5" class="loading-msg">No quotes loaded yet.</td></tr>';
+  }
+  document.getElementById('scrFilter').addEventListener('change', renderScreenerPage);
+  document.getElementById('scrSort').addEventListener('change', renderScreenerPage);
+
+  function renderAnalyticsPage(){
+    const vis = loadedQuotes();
+    document.getElementById('anRanges').innerHTML = vis.map(q => {
+      const span = (q.high - q.low) || 1;
+      const pct = ((q.price - q.low) / span) * 100;
+      const up = q.changePercent>=0;
+      return '<div class="range-row"><span><b>'+q.symbol+'</b></span>' +
+        '<div class="range-track"><div class="range-fill"></div><div class="range-marker" style="left:'+pct.toFixed(1)+'%;"></div></div>' +
+        '<span style="font-family:var(--mono);text-align:right;color:'+(up?'var(--up-text)':'var(--down-text)')+'">'+q.ccy+fmt(q.price,2)+'</span></div>';
+    }).join('') || '<div class="loading-msg">Loading quotes…</div>';
+    document.getElementById('anUpdated').textContent = window.__lastAsOf ? 'Range = today\'s low–high · updated '+timeStr(window.__lastAsOf) : '—';
+  }
+
+  function renderAlertsPage(){
+    const thresh = parseFloat(document.getElementById('alertThresh').value) || 0;
+    const triggered = loadedQuotes().filter(q => Math.abs(q.changePercent) >= thresh);
+    document.getElementById('alertList').innerHTML = triggered.length ? triggered.map(q => {
+      const up = q.changePercent>=0;
+      return '<div class="alert-row"><span>'+(up?'🔺':'🔻')+' <b>'+q.symbol+'</b> '+q.name+'</span><span style="font-family:var(--mono);color:'+(up?'var(--up-text)':'var(--down-text)')+'">'+(up?'+':'')+q.changePercent.toFixed(2)+'%</span></div>';
+    }).join('') : '<div class="loading-msg">No symbols past that threshold right now.</div>';
+  }
+  document.getElementById('alertThresh').addEventListener('input', renderAlertsPage);
+
+  function buildReportText(){
+    const vis = loadedQuotes();
+    if (!vis.length) return 'No quotes loaded yet — try Refresh Now.';
+    const lines = ['MARKET PULSE — WATCHLIST SNAPSHOT (Yahoo Finance)', new Date().toString(), ''];
+    vis.forEach(q => lines.push(q.symbol.padEnd(6) + q.name.padEnd(22) + (q.ccy+fmt(q.price,2)).padStart(12) + '  ' + (q.changePercent>=0?'+':'')+q.changePercent.toFixed(2)+'%'));
+    const avg = vis.reduce((a,q)=>a+q.changePercent,0)/vis.length;
+    lines.push('', 'Average change: ' + (avg>=0?'+':'') + avg.toFixed(2) + '%');
+    lines.push('Source: Yahoo Finance via yfinance (unofficial)');
+    return lines.join('\n');
+  }
+  function renderReportsPage(){ document.getElementById('reportText').textContent = buildReportText(); }
+  document.getElementById('exportCsvBtn').addEventListener('click', () => {
+    const note = document.getElementById('exportNote');
+    const vis = loadedQuotes();
+    if (!vis.length) { note.textContent = 'No quotes loaded yet.'; return; }
+    const csv = ['Symbol,Company,Price,ChangePercent,Volume'].concat(vis.map(q => [q.symbol,'"'+q.name+'"',q.price,q.changePercent,q.volume].join(','))).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'market-pulse-watchlist.csv';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    note.textContent = 'Saved market-pulse-watchlist.csv';
+  });
+
+  function renderSettingsPage(){
+    document.getElementById('settingsConn').textContent = loadedQuotes().length ? 'connected' : 'connecting…';
+    const ms = parseInt(document.getElementById('autoRefresh').value, 10);
+    document.getElementById('settingsAutoRefresh').textContent = ms>0 ? ('every '+(ms/1000)+'s') : 'off';
+  }
+  document.getElementById('defaultMarketSelect').addEventListener('change', e => {
+    document.getElementById('marketFilter').value = e.target.value;
+    document.getElementById('marketFilter').dispatchEvent(new Event('change'));
+  });
+
+  function populateSymSelect(){
+    const sel = document.getElementById('symSelect');
+    const vis = visQuotes();
+    if (!vis.find(q=>q.symbol===activeSym)) activeSym = vis[0] ? vis[0].symbol : activeSym;
+    sel.innerHTML = vis.map(q=>'<option value="'+q.symbol+'"'+(q.symbol===activeSym?' selected':'')+'>'+q.symbol+'</option>').join('');
+  }
+  document.getElementById('symSelect').addEventListener('change', e => { activeSym = e.target.value; renderChart1(); });
+  document.getElementById('marketFilter').addEventListener('change', e => { marketFilter = e.target.value; populateSymSelect(); renderAll(); });
+
+  let autoTimer = null;
+  document.getElementById('autoRefresh').addEventListener('change', e => {
+    if (autoTimer) clearInterval(autoTimer);
+    const ms = parseInt(e.target.value,10);
+    if (ms>0) autoTimer = setInterval(refreshAll, ms);
+  });
+  document.getElementById('refreshBtn').addEventListener('click', refreshAll);
+
+  async function renderAll(){ renderKPIs(); renderTable(); renderPie(); renderBar(); renderChart2(); await renderChart1(); renderPage(currentPage); }
+  async function refreshAll(){
+    const btn = document.getElementById('refreshBtn'); btn.disabled = true; btn.textContent = '↻ Refreshing…';
+    await fetchQuotes(); populateSymSelect(); await renderAll();
+    btn.disabled = false; btn.textContent = '↻ Refresh Now';
+  }
+  document.querySelector('#navList a[data-page="overview"]').classList.add('active');
+  refreshAll();
+  autoTimer = setInterval(refreshAll, 30000);
+})();
+</script>
+</body>
+</html>
